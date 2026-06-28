@@ -38,7 +38,7 @@ export class SensorService {
   async borrarTodo() {
     try {
       const resultado = await this.sensorModel.deleteMany({});
-      this.logger.log(`🗑️ Historial eliminado de MongoDB. Registros borrados: ${resultado.deletedCount}`);
+      this.logger.log(`Historial eliminado de MongoDB. Registros borrados: ${resultado.deletedCount}`);
 
       await this.redisService.limpiarCache();
 

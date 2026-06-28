@@ -32,4 +32,13 @@ export class RedisService {
       return false; 
     }
   }
+
+  async limpiarCache() {
+    try {
+      await this.redisClient.flushdb(); 
+      this.logger.debug('Cache de Redis limpiada');
+    } catch (error) {
+      this.logger.error('Error limpiando Redis', error);
+    }
+  }
 }

@@ -34,4 +34,26 @@ export class SensorService {
       throw error;
     }
   }
+
+  async borrarTodo() {
+    try {
+      const resultado = await this.sensorModel.deleteMany({});
+      this.logger.log(`🗑️ Historial eliminado de MongoDB. Registros borrados: ${resultado.deletedCount}`);
+
+      await this.redisService.limpiarCache();
+
+      this.eventosGateway.server.emit('datos-borrados', { 
+        mensaje: 'Se ha reiniciado la base' 
+      });
+
+      return { 
+        statusCode: 200, 
+        message: 'Entorno reiniciado exitosamente',
+        borrados: resultado.deletedCount
+      };
+    } catch (error) {
+      this.logger.error('Error intentando borrar el historial', error);
+      throw error;
+    }
+  }
 }

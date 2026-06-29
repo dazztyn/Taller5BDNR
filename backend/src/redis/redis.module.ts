@@ -7,15 +7,18 @@ import { RedisService } from './redis.service';
     {
       provide: 'REDIS_CLIENT',
       useFactory: () => {
+        if (process.env.REDIS_URL) {
+          return new Redis(process.env.REDIS_URL);
+        }
+
         return new Redis({
-          host: 'localhost',
+          host: 'localhost', 
           port: 6379,
         });
       },
     },
     RedisService,
   ],
-  // Exportamos el servicio para que el SensorModule pueda usarlo
   exports: [RedisService], 
 })
 export class RedisModule {}

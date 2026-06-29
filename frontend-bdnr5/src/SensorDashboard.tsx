@@ -236,7 +236,108 @@ function AlertRow({ alert }: { alert: Alert }) {
     </div>
   );
 }
+function TablaHistorico({
+  datos,
+  paginaActual,
+  setPaginaActual,
+  filasPorPagina,
+}: {
+  datos: DatosSensor[];
+  paginaActual: number;
+  setPaginaActual: (p: number) => void;
+  filasPorPagina: number;
+}) {
+  const totalPaginas = Math.ceil(datos.length / filasPorPagina);
+  const slice = datos.slice(
+    (paginaActual - 1) * filasPorPagina,
+    paginaActual * filasPorPagina
+  );
 
+  return (
+    <div style={{ background: '#fff', borderRadius: 12, border: '0.5px solid rgba(0,0,0,0.08)', padding: '1.25rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 500 }}>
+          Historial completo
+          <span style={{ marginLeft: 8, fontSize: 13, fontWeight: 400, color: '#888780' }}>
+            {datos.length} registros
+          </span>
+        </h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+          <button
+            onClick={() => setPaginaActual(Math.max(1, paginaActual - 1))}
+            disabled={paginaActual === 1}
+            style={{
+              padding: '4px 10px', borderRadius: 6,
+              border: '0.5px solid rgba(0,0,0,0.12)', background: 'transparent',
+              cursor: paginaActual === 1 ? 'not-allowed' : 'pointer',
+              opacity: paginaActual === 1 ? 0.4 : 1,
+            }}
+          >‹</button>
+          <span style={{ color: '#888780' }}>
+            {paginaActual} / {totalPaginas || 1}
+          </span>
+          <button
+            onClick={() => setPaginaActual(Math.min(totalPaginas, paginaActual + 1))}
+            disabled={paginaActual >= totalPaginas}
+            style={{
+              padding: '4px 10px', borderRadius: 6,
+              border: '0.5px solid rgba(0,0,0,0.12)', background: 'transparent',
+              cursor: paginaActual >= totalPaginas ? 'not-allowed' : 'pointer',
+              opacity: paginaActual >= totalPaginas ? 0.4 : 1,
+            }}
+          >›</button>
+        </div>
+      </div>
+
+      {datos.length === 0 ? (
+        <p style={{ color: '#888780', fontSize: 13, margin: 0 }}>Sin datos históricos.</p>
+      ) : (
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }} aria-label="Historial completo de lecturas">
+          <thead>
+            <tr>
+              {['#', 'Fecha', 'Hora', 'Dispositivo', 'Temperatura', 'Humedad', 'Nivel agua'].map((h) => (
+                <th key={h} style={{
+                  padding: '8px 10px', textAlign: 'left',
+                  color: '#888780', fontWeight: 500,
+                  borderBottom: '0.5px solid rgba(0,0,0,0.08)',
+                  whiteSpace: 'nowrap',
+                }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {slice.map((d, i) => {
+              const idx = (paginaActual - 1) * filasPorPagina + i + 1;
+              const tempAlert = d.temperatura > LimiteAlertaTemp;
+              const waterAlert = d.nivelAgua <= LimiteAlertaAgua;
+              return (
+                <tr key={i} style={{ background: i % 2 === 0 ? 'transparent' : 'rgba(0,0,0,0.02)' }}>
+                  <td style={{ padding: '7px 10px', color: '#888780', fontSize: 12 }}>{idx}</td>
+                  <td style={{ padding: '7px 10px', color: '#888780', whiteSpace: 'nowrap' }}>
+                    {d.timestamp.toLocaleDateString('es-CL')}
+                  </td>
+                  <td style={{ padding: '7px 10px', color: '#888780', whiteSpace: 'nowrap' }}>
+                    {formatTime(d.timestamp)}
+                  </td>
+                  <td style={{ padding: '7px 10px', fontWeight: 500 }}>{d.deviceId}</td>
+                  <td style={{ padding: '7px 10px', fontWeight: 500, color: tempAlert ? '#a32d2d' : 'inherit' }}>
+                    {d.temperatura.toFixed(1)}°C
+                    {tempAlert && <span style={{ marginLeft: 4, fontSize: 11, color: '#e24b4a' }}>▲</span>}
+                  </td>
+                  <td style={{ padding: '7px 10px' }}>{d.humedad.toFixed(1)}%</td>
+                  <td style={{ padding: '7px 10px', color: waterAlert ? '#854f0b' : 'inherit', fontWeight: waterAlert ? 500 : 400 }}>
+                    {d.nivelAgua}/4
+                    {waterAlert && <span style={{ marginLeft: 4, fontSize: 11, color: '#eda100' }}>▼</span>}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
 export default function SensorDashboard() {
   const [connected, setConnected] = useState(false);
   const [history, setHistory] = useState<DatosSensor[]>([]);
@@ -245,7 +346,10 @@ export default function SensorDashboard() {
   const [PromediosPorHora, setPromediosPorHora] = useState<PromedioPorHora[]>([]);
   const [resetting, setResetting] = useState(false);
   const socketRef = useRef<Socket | null>(null);
-  
+  const [tabActiva, setTabActiva] = useState<'dashboard' | 'historico'>('dashboard');
+  const [globalData, setGlobalData] = useState<DatosSensor[]>([]);
+  const [paginaActual, setPaginaActual] = useState(1);
+  const FILAS_POR_PAGINA = 20;
   const recalcPromediosPorHora = useCallback((data: DatosSensor[]) => {
     const byHour: Record<string, number[]> = {};
     data.forEach((d) => {
@@ -312,7 +416,9 @@ export default function SensorDashboard() {
       setHistory([]);
       setChartData([]);
       setPromediosPorHora([]);
+      setGlobalData([]);
       setAlerts([]);
+      setPaginaActual(1);
     });
 
     return () => {
@@ -365,6 +471,8 @@ useEffect(() => {
           timestamp: new Date(d.createdAt),
           time: formatTime(new Date(d.createdAt)),
         }));
+        setChartData(parsed.slice(-MaxPuntosChart));
+        setGlobalData([...parsed].reverse());
         setChartData(parsed.slice(-MaxPuntosChart));
       }
 
@@ -433,7 +541,29 @@ useEffect(() => {
         }}
       >
         <div>
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 500 }}>Monitor IoT</h1>
+          <div>
+            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 500 }}>Monitor IoT</h1>
+            <div style={{ display: 'flex', gap: 4, marginTop: 10 }}>
+              {(['dashboard', 'historico'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setTabActiva(tab)}
+                  style={{
+                    padding: '5px 14px',
+                    borderRadius: 8,
+                    border: '0.5px solid rgba(0,0,0,0.12)',
+                    background: tabActiva === tab ? '#0b0b0b' : 'transparent',
+                    color: tabActiva === tab ? '#fff' : '#888780',
+                    fontSize: 13,
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {tab === 'dashboard' ? 'Dashboard' : 'Histórico'}
+                </button>
+              ))}
+            </div>
+          </div>
           <p style={{ margin: '2px 0 0', fontSize: 13, color: '#888780' }}>
             Temperatura · Humedad · Nivel de agua
           </p>
@@ -480,7 +610,8 @@ useEffect(() => {
           </button>
         </div>
       </header>
-
+      {tabActiva === 'dashboard' ? (
+  <>      
       <div
         style={{
           display: 'grid',
@@ -849,6 +980,15 @@ useEffect(() => {
           )}
         </div>
       </div>
+      </>
+) : (
+  <TablaHistorico
+    datos={globalData}
+    paginaActual={paginaActual}
+    setPaginaActual={setPaginaActual}
+    filasPorPagina={FILAS_POR_PAGINA}
+  />
+)}
     </div>
   );
 }

@@ -41,4 +41,14 @@ export class RedisService {
       this.logger.error('Error limpiando Redis', error);
     }
   }
+
+  async obtenerUltimoDato() {
+    try {
+      const dato = await this.redisClient.get('sensor:esp32_1:latest');
+      return dato ? JSON.parse(dato) : null;
+    } catch (error) {
+      this.logger.error('Error leyendo de Redis', error);
+      return null;
+    }
+  }
 }

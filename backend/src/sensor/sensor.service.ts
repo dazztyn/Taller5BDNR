@@ -56,4 +56,37 @@ export class SensorService {
       throw error;
     }
   }
+
+  async obtenerEstadoActual() {
+    return this.redisService.obtenerUltimoDato();
+  }
+  
+  async obtenerHistorial() {
+    return this.sensorModel.find().sort({ createdAt: -1 }).limit(10).exec();
+  }
+
+  async obtenerTodoElHistorial() {
+    return this.sensorModel
+      .find()
+      .sort({ createdAt: 1 })
+      .limit(1000)
+      .exec();
+  }
+
+  async obtenerEstadisticas() {
+    return this.sensorModel.aggregate([
+      {
+        $group: {
+          _id: {
+            year: { $year: '$createdAt' },
+            month: { $month: '$createdAt' },
+            day: { $dayOfMonth: '$createdAt' },
+            hour: { $hour: '$createdAt' }
+          },
+          promedioTemperatura: { $avg: '$temperatura' }
+        }
+      },
+      { $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1, '_id.hour': 1 } }
+    ]).exec();
+  }
 }

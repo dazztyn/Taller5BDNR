@@ -349,6 +349,7 @@ export default function SensorDashboard() {
   const [tabActiva, setTabActiva] = useState<'dashboard' | 'historico'>('dashboard');
   const [globalData, setGlobalData] = useState<DatosSensor[]>([]);
   const [paginaActual, setPaginaActual] = useState(1);
+  const [totalRegistros, setTotalRegistros] = useState(0);
   const FILAS_POR_PAGINA = 20;
   const recalcPromediosPorHora = useCallback((data: DatosSensor[]) => {
     const byHour: Record<string, number[]> = {};
@@ -373,7 +374,7 @@ export default function SensorDashboard() {
 
       const chartPoint = { ...dato, time: formatTime(dato.timestamp) };
       setChartData((prev) => [...prev, chartPoint].slice(-MaxPuntosChart));
-
+      setTotalRegistros(prev => prev + 1);
       setHistory((prev) => {
         recalcPromediosPorHora(prev);
         return prev;
@@ -419,6 +420,7 @@ export default function SensorDashboard() {
       setGlobalData([]);
       setAlerts([]);
       setPaginaActual(1);
+      setTotalRegistros(0);
     });
 
     return () => {
@@ -462,7 +464,7 @@ useEffect(() => {
         setHistory(parsed);
       }
 
-      if (Array.isArray(global) && global.length > 0) {
+     if (Array.isArray(global) && global.length > 0) {
         const parsed = global.map((d: any) => ({
           deviceId: d.deviceId,
           temperatura: d.temperatura,
@@ -471,9 +473,9 @@ useEffect(() => {
           timestamp: new Date(d.createdAt),
           time: formatTime(new Date(d.createdAt)),
         }));
-        setChartData(parsed.slice(-MaxPuntosChart));
-        setGlobalData([...parsed].reverse());
-        setChartData(parsed.slice(-MaxPuntosChart));
+        setChartData(parsed.slice(-MaxPuntosChart)); 
+        setGlobalData([...parsed].reverse());     
+        setTotalRegistros(parsed.length);   
       }
 
       if (Array.isArray(stats) && stats.length > 0) {
@@ -667,7 +669,7 @@ useEffect(() => {
         >
           <span style={{ fontSize: 13, color: '#888780' }}>Lecturas totales</span>
           <span style={{ fontSize: 32, fontWeight: 500, color: 'var(--text-primary, #0b0b0b)', lineHeight: 1 }}>
-            {chartData.length}
+            {totalRegistros}
           </span>
           <span style={{ fontSize: 11, color: '#888780', marginTop: 2 }}>en esta sesión</span>
         </div>
@@ -696,7 +698,7 @@ useEffect(() => {
             />
             Datos en tiempo real
           </h2>
-          {chartData.length === 0 ? (
+          {totalRegistros === 0 ? (
             <div
               style={{
                 height: 260,

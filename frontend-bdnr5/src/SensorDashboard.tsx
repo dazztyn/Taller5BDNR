@@ -245,7 +245,7 @@ export default function SensorDashboard() {
   const [PromediosPorHora, setPromediosPorHora] = useState<PromedioPorHora[]>([]);
   const [resetting, setResetting] = useState(false);
   const socketRef = useRef<Socket | null>(null);
-
+  
   const recalcPromediosPorHora = useCallback((data: DatosSensor[]) => {
     const byHour: Record<string, number[]> = {};
     data.forEach((d) => {
@@ -275,7 +275,6 @@ export default function SensorDashboard() {
         return prev;
       });
 
-      // Alertas
       const newAlerts: Alert[] = [];
       if (dato.temperatura > LimiteAlertaTemp) {
         newAlerts.push({
@@ -321,12 +320,10 @@ export default function SensorDashboard() {
     };
   }, [handleNewData]);
 
-  // Último dato recibido
   const latest = history[0] ?? null;
   const tempAlert = latest !== null && latest.temperatura > LimiteAlertaTemp;
   const waterAlert = latest !== null && latest.nivelAgua <= LimiteAlertaAgua;
 
-  // Reiniciar sistema
   async function handleReset() {
     if (!window.confirm('¿Reiniciar todo el historial? Esta acción no se puede deshacer.')) return;
     setResetting(true);
@@ -338,9 +335,66 @@ export default function SensorDashboard() {
       setResetting(false);
     }
   }
+useEffect(() => {
+  async function cargarDatosIniciales() {
+    try {
+      const [latest, history, stats, global] = await Promise.all([
+        fetch(`${URLBackend}/sensor-data/latest`).then(r => r.json()),
+        fetch(`${URLBackend}/sensor-data/history`).then(r => r.json()),
+        fetch(`${URLBackend}/sensor-data/stats`).then(r => r.json()),
+        fetch(`${URLBackend}/sensor-data/global`).then(r => r.json()),
+      ]);
 
-  // ─── Render ─────────────────────────────────────────────────────────────────
+      if (Array.isArray(history) && history.length > 0) {
+        const parsed: DatosSensor[] = history.map((d: any) => ({
+          deviceId: d.deviceId,
+          temperatura: d.temperatura,
+          humedad: d.humedad,
+          nivelAgua: d.nivelAgua,
+          timestamp: new Date(d.createdAt),
+        }));
+        setHistory(parsed);
+      }
 
+      if (Array.isArray(global) && global.length > 0) {
+        const parsed = global.map((d: any) => ({
+          deviceId: d.deviceId,
+          temperatura: d.temperatura,
+          humedad: d.humedad,
+          nivelAgua: d.nivelAgua,
+          timestamp: new Date(d.createdAt),
+          time: formatTime(new Date(d.createdAt)),
+        }));
+        setChartData(parsed.slice(-MaxPuntosChart));
+      }
+
+      if (Array.isArray(stats) && stats.length > 0) {
+        const promedios: PromedioPorHora[] = stats.map((s: any) => ({
+          hora: `${String(s._id.hour).padStart(2, '0')}:00`,
+          promedio: parseFloat(s.promedioTemperatura.toFixed(1)),
+          cantidad: 0, 
+        }));
+        setPromediosPorHora(promedios.slice(-12));
+      }
+
+      if (latest && history.length === 0) {
+        const dato: DatosSensor = {
+          deviceId: latest.deviceId,
+          temperatura: latest.temperatura,
+          humedad: latest.humedad,
+          nivelAgua: latest.nivelAgua,
+          timestamp: new Date(),
+        };
+        setHistory([dato]);
+      }
+
+    } catch (err) {
+      console.error('Error cargando datos iniciales:', err);
+    }
+  }
+
+  cargarDatosIniciales();
+}, []); 
   const sectionTitle: React.CSSProperties = {
     fontSize: 15,
     fontWeight: 500,
@@ -368,7 +422,6 @@ export default function SensorDashboard() {
         color: 'var(--text-primary, #0b0b0b)',
       }}
     >
-      {/* ── Header ── */}
       <header
         style={{
           display: 'flex',
@@ -387,7 +440,6 @@ export default function SensorDashboard() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {/* Estado de conexión */}
           <div
             style={{
               display: 'flex',
@@ -406,7 +458,6 @@ export default function SensorDashboard() {
             {connected ? 'Conectado' : 'Desconectado'}
           </div>
 
-          {/* Botón reinicio */}
           <button
             onClick={handleReset}
             disabled={resetting}
@@ -430,7 +481,6 @@ export default function SensorDashboard() {
         </div>
       </header>
 
-      {/* ── Métricas actuales ── */}
       <div
         style={{
           display: 'grid',
@@ -492,7 +542,6 @@ export default function SensorDashboard() {
         </div>
       </div>
 
-      {/* ── Fila principal: gráfico + nivel de agua ── */}
       <div
         style={{
           display: 'grid',
@@ -501,7 +550,6 @@ export default function SensorDashboard() {
           marginBottom: '1rem',
         }}
       >
-        {/* Gráfico tiempo real */}
         <div style={card}>
           <h2 style={sectionTitle}>
             <span
@@ -628,7 +676,6 @@ export default function SensorDashboard() {
           gap: '1rem',
         }}
       >
-        {/* Promedio por hora */}
         <div style={card}>
           <h2 style={sectionTitle}>
             <Clock size={15} aria-hidden="true" />
@@ -686,7 +733,6 @@ export default function SensorDashboard() {
           )}
         </div>
 
-        {/* Histórico */}
         <div style={card}>
           <h2 style={sectionTitle}>
             Últimas {HistorialMax} lecturas

@@ -34,7 +34,7 @@ interface PromedioPorHora {
   cantidad: number;
 }
 
-const URLBackend = 'http://localhost:3000';
+const URLBackend = import.meta.env.VITE_API_URL;
 const LimiteAlertaTemp = 30;
 const LimiteAlertaAgua = 1;
 const HistorialMax = 10;

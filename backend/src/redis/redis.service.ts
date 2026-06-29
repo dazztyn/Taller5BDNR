@@ -14,6 +14,7 @@ export class RedisService {
 
     try {
       await this.redisClient.set(redisKey, JSON.stringify(dato));
+      await this.redisClient.set('sensor:latest', JSON.stringify(dato));
       
       if (temperatura > 30) {
         this.logger.warn(`¡ALERTA ROJA! Temperatura crítica en ${deviceId}: ${temperatura}°C`);
@@ -44,7 +45,7 @@ export class RedisService {
 
   async obtenerUltimoDato() {
     try {
-      const dato = await this.redisClient.get('sensor:esp32_1:latest');
+      const dato = await this.redisClient.get('sensor:latest');
       return dato ? JSON.parse(dato) : null;
     } catch (error) {
       this.logger.error('Error leyendo de Redis', error);
